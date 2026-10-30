@@ -1,702 +1,490 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>JUNE'S JOURNAL</title>
-  <!-- Tailwind CSS -->
-  <script src="https://cdn.tailwindcss.com"></script>
-  <!-- React & ReactDOM -->
-  <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
-  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
-  <!-- Babel for JSX -->
-  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-  <!-- Lucide Icons -->
-  <script src="https://unpkg.com/lucide@latest"></script>
-  <style>
-    @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;800&family=Inter:wght@400;500;600;700&display=swap');
-    
-    body {
-      font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-      background-color: #122119;
-      margin: 0;
-      padding: 0;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      min-height: 100vh;
-    }
-
-    .font-serif-title {
-      font-family: 'Playfair Display', Georgia, serif;
-    }
-
-    /* Hide scrollbar for Chrome, Safari and Opera */
-    .no-scrollbar::-webkit-scrollbar {
-      display: none;
-    }
-    /* Hide scrollbar for IE, Edge and Firefox */
-    .no-scrollbar {
-      -ms-overflow-style: none;  /* IE and Edge */
-      scrollbar-width: none;  /* Firefox */
-    }
-
-    @keyframes fadeIn {
-      from { opacity: 0; transform: translateY(6px); }
-      to { opacity: 1; transform: translateY(0); }
-    }
-
-    @keyframes slideUp {
-      from { transform: translateY(100%); }
-      to { transform: translateY(0); }
-    }
-
-    .animate-fade-in {
-      animation: fadeIn 0.25s ease-out forwards;
-    }
-
-    .animate-slide-up {
-      animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-    }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>June's Journal</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- React & ReactDOM -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <!-- Babel for JSX -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
 </head>
-<body>
-  <div id="root"></div>
+<body class="bg-[#e8ede9] m-0 p-0 overflow-hidden select-none">
+    <div id="root"></div>
 
-  <script type="text/babel">
-    const { useState, useEffect } = React;
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+        const { 
+            BookOpen, Wallet, Heart, BookMarked, Calendar, 
+            Plus, X, Send, Check, ChevronDown, ChevronUp, Edit3, Trash2 
+        } = lucide;
 
-    function App() {
-      // Tabs: 'finance', 'health', 'home', 'learning', 'calendar'
-      const [activeTab, setActiveTab] = useState('home');
-      
-      // Toast notification state
-      const [toastMessage, setToastMessage] = useState('');
+        function App() {
+            const [activeTab, setActiveTab] = useState('home');
+            const [isDialogOpen, setIsDialogOpen] = useState(false);
+            const [diaryText, setDiaryText] = useState('');
+            const [toastMessage, setToastMessage] = useState(null);
 
-      const showToast = (msg) => {
-        setToastMessage(msg);
-        setTimeout(() => setToastMessage(''), 3000);
-      };
+            // Toast 提示框定时清除
+            const showToast = (msg) => {
+                setToastMessage(msg);
+                setTimeout(() => setToastMessage(null), 3000);
+            };
 
-      // Diary State
-      const [isDiaryOpen, setIsDiaryOpen] = useState(false);
-      const [diaryText, setDiaryText] = useState('');
+            // 日语单词本状态
+            const [inputWord, setInputWord] = useState('');
+            const [isParsing, setIsParsing] = useState(false);
+            const [pendingWord, setPendingWord] = useState(null);
+            const [expandedWordId, setExpandedWordId] = useState(null);
+            const [noteEditingId, setNoteEditingId] = useState(null);
+            const [tempNoteText, setTempNoteText] = useState('');
 
-      // Health Tab State
-      const [weightInput, setWeightInput] = useState('');
-      const [foodInput, setFoodInput] = useState('');
-      
-      // Daily weight logs (Date key -> weight value in 斤)
-      const [weightLogs, setWeightLogs] = useState([
-        { date: '10/25', weight: 116.0 },
-        { date: '10/26', weight: 115.5 },
-        { date: '10/27', weight: 115.8 },
-        { date: '10/28', weight: 115.0 },
-        { date: '10/29', weight: 114.6 },
-        { date: '10/30', weight: 114.2 },
-        { date: '10/31', weight: 114.0 },
-      ]);
+            const [wordList, setWordList] = useState([
+                { id: 1, kanji: '勉強', kana: 'べんきょう', pos: '名 · 名词', meaning: '学习、勤奋', note: '常用于 勉強する (学习)' },
+                { id: 2, kanji: '食べる', kana: 'たべる', pos: '他五 · 一段动词', meaning: '吃、生存', note: '' }
+            ]);
 
-      // Food entries list
-      const [foodLogs, setFoodLogs] = useState([
-        { id: 1, time: '08:30', text: '美式咖啡 & 水煮蛋' },
-        { id: 2, time: '12:15', text: '鸡胸肉沙拉与玄米饭' }
-      ]);
+            // 健康板块状态 (体重单位: 斤)
+            const [weightInput, setWeightInput] = useState('');
+            const [weightList, setWeightList] = useState([
+                { date: '2026-06-01', weight: 114.0 },
+                { date: '2026-06-02', weight: 113.8 },
+                { date: '2026-06-03', weight: 114.2 },
+            ]);
 
-      // Helper: Log or Overwrite today's weight
-      const handleAddOrOverwriteWeight = (val) => {
-        const num = parseFloat(val);
-        if (isNaN(num) || num <= 0) return;
+            const [dietInput, setDietInput] = useState('');
+            const [dietList, setDietList] = useState([
+                { id: 1, time: '今天 08:30', content: '全麦面包 + 美式咖啡' },
+                { id: 2, time: '今天 12:40', content: '鸡胸肉沙拉' }
+            ]);
 
-        const todayStr = new Date().toLocaleDateString('en-US', { month: 'numeric', day: 'numeric' });
-        setWeightLogs(prev => {
-          const index = prev.findIndex(item => item.date === todayStr);
-          if (index !== -1) {
-            // Overwrite existing record for today
-            const updated = [...prev];
-            updated[index] = { date: todayStr, weight: num };
-            return updated;
-          } else {
-            // Append new record
-            return [...prev, { date: todayStr, weight: num }];
-          }
-        });
-      };
+            // 日语单词解析
+            const handleParseWord = () => {
+                if (!inputWord.trim()) return;
+                setIsParsing(true);
+                setTimeout(() => {
+                    setPendingWord({
+                        kanji: inputWord,
+                        kana: inputWord === '猫' ? 'ねこ' : '假名解析中...',
+                        pos: inputWord === '猫' ? '名 · 名词' : '自动识别词性',
+                        meaning: inputWord === '猫' ? '猫、猫咪' : '自动识别中文含义',
+                    });
+                    setIsParsing(false);
+                }, 400);
+            };
 
-      // Helper: Delete food entry
-      const handleDeleteFood = (id) => {
-        setFoodLogs(prev => prev.filter(item => item.id !== id));
-      };
+            const handleConfirmWord = () => {
+                if (!pendingWord) return;
+                setWordList([{ id: Date.now(), ...pendingWord, note: '' }, ...wordList]);
+                setPendingWord(null);
+                setInputWord('');
+            };
 
-      // Japanese Learning Tab State
-      const [inputWord, setInputWord] = useState('');
-      const [isParsing, setIsParsing] = useState(false);
-      const [pendingWord, setPendingWord] = useState(null);
-      const [expandedWordId, setExpandedWordId] = useState(null);
+            // 记录体重（同一天覆盖）
+            const handleAddWeight = () => {
+                const val = parseFloat(weightInput);
+                if (isNaN(val)) return;
+                const todayStr = new Date().toISOString().split('T')[0];
+                
+                const existingIndex = weightList.findIndex(item => item.date === todayStr);
+                if (existingIndex >= 0) {
+                    const updated = [...weightList];
+                    updated[existingIndex].weight = val;
+                    setWeightList(updated);
+                } else {
+                    setWeightList([...weightList, { date: todayStr, weight: val }]);
+                }
+                setWeightInput('');
+                showToast('✨ 体重已更新');
+            };
 
-      // Sample Word List Data
-      const [wordList, setWordList] = useState([
-        {
-          id: 1,
-          kanji: '勉強',
-          kana: 'べんきょう',
-          pos: '名 · 名词',
-          meaning: '学习、勤奋',
-          note: '常用于 勉強する (学习，努力)'
-        },
-        {
-          id: 2,
-          kanji: '食べる',
-          kana: 'たべる',
-          pos: '他五 · 一段动词',
-          meaning: '吃、生存',
-          note: '关联词：食べ物 (食物)'
-        }
-      ]);
+            // 记录饮食
+            const handleAddDiet = () => {
+                if (!dietInput.trim()) return;
+                const nowStr = '今天 ' + new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                setDietList([{ id: Date.now(), time: nowStr, content: dietInput.trim() }, ...dietList]);
+                setDietInput('');
+                showToast('✨ 饮食已记录');
+            };
 
-      // Initialize Lucide Icons after render
-      useEffect(() => {
-        if (window.lucide) {
-          window.lucide.createIcons();
-        }
-      }, [activeTab, pendingWord, expandedWordId, isDiaryOpen, weightLogs, foodLogs, toastMessage]);
+            // 首页日记 AI 自动解析并抓取体重与饮食
+            const handleSaveDiary = () => {
+                if (!diaryText.trim()) {
+                    setIsDialogOpen(false);
+                    return;
+                }
 
-      // Handle Home Journal Submit with AI Auto-Parsing for Health
-      const handleSaveDiary = () => {
-        if (!diaryText.trim()) {
-          setIsDiaryOpen(false);
-          return;
-        }
+                // 简单的正则抓取体重（支持 "114斤", "114.5 斤", "体重110" 等）
+                const weightMatch = diaryText.match(/(?:体重)?\s*(\d{2,3}(?.\d)?)\s*斤/);
+                if (weightMatch) {
+                    const val = parseFloat(weightMatch[1]);
+                    const todayStr = new Date().toISOString().split('T')[0];
+                    const existingIndex = weightList.findIndex(item => item.date === todayStr);
+                    if (existingIndex >= 0) {
+                        const updated = [...weightList];
+                        updated[existingIndex].weight = val;
+                        setWeightList(updated);
+                    } else {
+                        setWeightList([...weightList, { date: todayStr, weight: val }]);
+                    }
+                }
 
-        let extractedCount = 0;
+                // 抓取饮食关键字
+                if (diaryText.includes('吃') || diaryText.includes('早餐') || diaryText.includes('午餐') || diaryText.includes('晚餐')) {
+                    const nowStr = '今天 ' + new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                    setDietList([{ id: Date.now(), time: nowStr, content: diaryText.trim() }, ...dietList]);
+                }
 
-        // 1. AI Parse Weight (e.g. 115斤, 体重115.5, weight 115, 115.5 斤)
-        const weightMatch = diaryText.match(/(?:体重|weight|重)?\s*(\d+(?:\.\d+)?)\s*(?:斤|kg)?/i);
-        if (weightMatch && weightMatch[1]) {
-          const extractedWeight = parseFloat(weightMatch[1]);
-          // Basic sanity check for realistic jin values
-          if (extractedWeight > 30 && extractedWeight < 300) {
-            handleAddOrOverwriteWeight(extractedWeight);
-            extractedCount++;
-          }
-        }
+                setIsDialogOpen(false);
+                setDiaryText('');
+                showToast('✨ 日记已保存，健康数据已自动同步');
+            };
 
-        // 2. AI Parse Food (e.g. 吃了..., 早餐..., 午餐..., 晚餐..., breakfast: ...)
-        const foodPatterns = [
-          /(?:吃了|吃了些|早餐|午餐|晚餐|宵夜|吃了|餐|dinner|lunch|breakfast|food)[:：\s]?([^\n，,。.]+)/gi
-        ];
-        
-        let foundFoods = [];
-        foodPatterns.forEach(pattern => {
-          let match;
-          while ((match = pattern.exec(diaryText)) !== null) {
-            if (match[1] && match[1].trim().length > 1) {
-              foundFoods.push(match[1].trim());
-            }
-          }
-        });
+            const today = new Date();
+            const formattedDate = today.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric', year: 'numeric' });
 
-        if (foundFoods.length > 0) {
-          const currentTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-          const newEntries = foundFoods.map((f, idx) => ({
-            id: Date.now() + idx,
-            time: currentTime,
-            text: f
-          }));
-          setFoodLogs(prev => [...newEntries, ...prev]);
-          extractedCount += foundFoods.length;
-        }
+            return (
+                <div className="flex justify-center items-center h-[100vh] w-[100vw] bg-[#e8ede9] p-0 md:p-4 font-sans antialiased">
+                    {/* 手机外壳画布容器：严格固定高度与宽度，内部采用绝对定位撑满 */}
+                    <div className="relative w-full h-full md:max-w-md md:h-[844px] bg-[#f8faf8] md:rounded-[40px] shadow-2xl flex flex-col overflow-hidden border-0 md:border-[8px] md:border-emerald-900/10">
+                        
+                        {/* 顶部安全区状态栏 (iOS Style) */}
+                        <div className="h-10 w-full bg-[#f8faf8] shrink-0 z-10" />
 
-        setIsDiaryOpen(false);
-        setDiaryText('');
-
-        if (extractedCount > 0) {
-          showToast('✨ AI 自动解析并将健康信息同步至 Health');
-        } else {
-          showToast('日记已成功保存');
-        }
-      };
-
-      // Simulate AI Word Parsing
-      const handleParseWord = () => {
-        if (!inputWord.trim()) return;
-        setIsParsing(true);
-
-        setTimeout(() => {
-          let kana = '假名解析';
-          let pos = '名 · 名词';
-          let meaning = '中文释义';
-
-          if (inputWord === '猫') {
-            kana = 'ねこ';
-            pos = '名 · 名词';
-            meaning = '猫、猫咪';
-          } else if (inputWord === '綺麗' || inputWord === 'きれい') {
-            kana = 'きれい';
-            pos = '形2 · 形容动词';
-            meaning = '美丽、干净';
-          } else if (inputWord === '散歩') {
-            kana = 'さんぽ';
-            pos = '名 · 名词';
-            meaning = '散步、闲逛';
-          } else {
-            kana = '自动解析发音';
-            pos = '自动识别词性';
-            meaning = '自动提取核心中文释义';
-          }
-
-          setPendingWord({ kanji: inputWord, kana, pos, meaning });
-          setIsParsing(false);
-        }, 350);
-      };
-
-      const handleConfirmWord = () => {
-        if (!pendingWord) return;
-        setWordList([{ id: Date.now(), ...pendingWord, note: '' }, ...wordList]);
-        setPendingWord(null);
-        setInputWord('');
-      };
-
-      const today = new Date();
-      const formattedDate = today.toLocaleDateString('en-US', {
-        weekday: 'long',
-        month: 'short',
-        day: 'numeric',
-        year: 'numeric'
-      });
-
-      // Compute Weight Chart Min/Max
-      const weights = weightLogs.map(w => w.weight);
-      const minW = Math.floor(Math.min(...weights) - 1);
-      const maxW = Math.ceil(Math.max(...weights) + 1);
-
-      return (
-        <div className="w-full max-w-md h-[100vh] sm:h-[844px] bg-[#f8faf8] sm:rounded-[44px] shadow-2xl flex flex-col overflow-hidden relative border-0 sm:border-[8px] sm:border-[#064e3b]/10 text-emerald-950">
-          
-          {/* iOS Status Bar Placeholder */}
-          <div className="h-9 w-full bg-[#f8faf8] shrink-0 flex justify-between items-center px-7 pt-2 text-[11px] font-semibold text-emerald-900/40 select-none z-10">
-            <span>9:41</span>
-            <div className="flex items-center gap-1.5">
-              <i data-lucide="wifi" className="w-3.5 h-3.5"></i>
-              <i data-lucide="battery" className="w-4 h-4"></i>
-            </div>
-          </div>
-
-          {/* Global Toast Banner */}
-          {toastMessage && (
-            <div className="absolute top-11 left-1/2 -translate-x-1/2 z-50 bg-emerald-900 text-emerald-50 text-xs px-4 py-2 rounded-full shadow-lg border border-emerald-700/50 flex items-center gap-2 animate-fade-in">
-              <i data-lucide="sparkles" className="w-3.5 h-3.5 text-emerald-300"></i>
-              <span>{toastMessage}</span>
-            </div>
-          )}
-
-          {/* Main Content Area */}
-          <div className="flex-1 overflow-y-auto px-6 pt-3 pb-24 relative flex flex-col no-scrollbar">
-            
-            {/* TAB 1: HOME (JUNE'S JOURNAL) */}
-            {activeTab === 'home' && (
-              <div className="flex-1 flex flex-col animate-fade-in">
-                <div className="mt-3 mb-5">
-                  <h1 className="text-3xl font-extrabold text-emerald-950 tracking-tight font-serif-title mb-1">
-                    JUNE'S JOURNAL
-                  </h1>
-                  <p className="text-xs font-semibold text-emerald-700/80 tracking-wider uppercase">
-                    {formattedDate}
-                  </p>
-                </div>
-
-                <div className="flex-1 bg-white rounded-[28px] p-6 shadow-sm border border-emerald-900/5 relative overflow-hidden flex flex-col justify-between min-h-[460px]">
-                  <div 
-                    className="absolute inset-0 opacity-[0.03] pointer-events-none"
-                    style={{
-                      backgroundImage: `radial-gradient(#064e3b 1px, transparent 1px)`,
-                      backgroundSize: '16px 16px'
-                    }}
-                  />
-
-                  <div className="w-10 h-1 bg-emerald-800/20 rounded-full mb-4" />
-
-                  <div className="flex-1 flex flex-col items-center justify-center">
-                    <div className="w-14 h-14 rounded-full bg-emerald-50 border border-emerald-100/60 flex items-center justify-center text-emerald-400 mb-3">
-                      <i data-lucide="book-open" className="w-6 h-6"></i>
-                    </div>
-                  </div>
-
-                  <div className="flex justify-end pt-4 relative z-10">
-                    <button
-                      onClick={() => setIsDiaryOpen(true)}
-                      className="w-14 h-14 rounded-2xl bg-emerald-800 text-emerald-50 flex items-center justify-center shadow-lg shadow-emerald-900/20 hover:bg-emerald-900 transition-all active:scale-95"
-                    >
-                      <i data-lucide="plus" className="w-7 h-7"></i>
-                    </button>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* TAB 2: LEARNING (Japanese Vocab) */}
-            {activeTab === 'learning' && (
-              <div className="flex-1 flex flex-col animate-fade-in pt-1">
-                <div className="mb-4">
-                  <h1 className="text-2xl font-bold text-emerald-950 font-serif-title mb-1">Notebook</h1>
-                </div>
-
-                <div className="relative mb-5">
-                  <div className="flex gap-2">
-                    <input
-                      type="text"
-                      value={inputWord}
-                      onChange={(e) => setInputWord(e.target.value)}
-                      placeholder="输入日语单词 (如: 猫, 散歩)..."
-                      className="flex-1 px-4 py-3 rounded-2xl bg-white border border-emerald-900/10 text-emerald-950 placeholder:text-emerald-900/30 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-800/20 shadow-sm"
-                    />
-                    <button
-                      onClick={handleParseWord}
-                      disabled={isParsing || !inputWord.trim()}
-                      className="w-12 h-12 rounded-2xl bg-emerald-800 text-emerald-50 text-base font-medium hover:bg-emerald-900 transition-all disabled:opacity-40 shadow-sm shrink-0 flex items-center justify-center"
-                    >
-                      {isParsing ? <span className="text-xs">...</span> : <i data-lucide="plus" className="w-6 h-6"></i>}
-                    </button>
-                  </div>
-                </div>
-
-                {pendingWord && (
-                  <div className="mb-5 p-5 rounded-2xl bg-emerald-900 text-emerald-50 shadow-xl animate-fade-in relative">
-                    <div className="flex justify-between items-start mb-3">
-                      <div>
-                        <span className="text-[10px] font-semibold uppercase tracking-wider text-emerald-300/80">解析确认</span>
-                        <div className="flex items-baseline gap-2 mt-0.5">
-                          <h3 className="text-2xl font-bold">{pendingWord.kanji}</h3>
-                          <span className="text-xs text-emerald-200/80 font-medium">[{pendingWord.kana}]</span>
-                        </div>
-                      </div>
-                      <span className="px-2.5 py-1 rounded-full text-[11px] font-medium bg-emerald-800/90 text-emerald-200 border border-emerald-700/50">
-                        {pendingWord.pos}
-                      </span>
-                    </div>
-
-                    <div className="text-sm text-emerald-100 mb-4 bg-emerald-950/40 p-3 rounded-xl border border-emerald-800/30">
-                      <span className="text-[10px] text-emerald-300 block mb-0.5">中文释义:</span>
-                      <p className="font-medium">{pendingWord.meaning}</p>
-                    </div>
-
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => setPendingWord(null)}
-                        className="flex-1 py-2.5 rounded-xl bg-emerald-800/60 text-emerald-200 text-xs font-medium hover:bg-emerald-800"
-                      >
-                        取消
-                      </button>
-                      <button
-                        onClick={handleConfirmWord}
-                        className="flex-1 py-2.5 rounded-xl bg-emerald-400 text-emerald-950 text-xs font-bold hover:bg-emerald-300 flex items-center justify-center gap-1 shadow"
-                      >
-                        <i data-lucide="check" className="w-4 h-4"></i>
-                        确认存入
-                      </button>
-                    </div>
-                  </div>
-                )}
-
-                <div className="flex-1 space-y-3">
-                  <div className="flex justify-between items-center mb-1">
-                    <span className="text-xs font-bold text-emerald-900/60 uppercase tracking-wider">Japanese</span>
-                    <span className="text-xs text-emerald-800/40">{wordList.length} 词汇</span>
-                  </div>
-
-                  {wordList.map((item) => {
-                    const isExpanded = expandedWordId === item.id;
-                    return (
-                      <div key={item.id} className="bg-white rounded-2xl border border-emerald-900/5 shadow-sm overflow-hidden transition-all">
-                        <div 
-                          onClick={() => setExpandedWordId(isExpanded ? null : item.id)}
-                          className="p-4 flex items-center justify-between cursor-pointer hover:bg-emerald-50/40"
-                        >
-                          <div className="flex flex-col">
-                            <div className="flex items-baseline gap-2">
-                              <span className="text-lg font-bold text-emerald-950">{item.kanji}</span>
-                              <span className="text-xs font-medium text-emerald-700/70">{item.kana}</span>
+                        {/* 顶部轻量 Toast 提示条 */}
+                        {toastMessage && (
+                            <div className="absolute top-12 left-6 right-6 z-50 bg-emerald-900 text-emerald-50 text-xs px-4 py-3 rounded-2xl shadow-lg flex items-center justify-between animate-bounce">
+                                <span>{toastMessage}</span>
                             </div>
-                            <span className="text-[10px] text-emerald-800/50 mt-0.5 font-medium">{item.pos}</span>
-                          </div>
-                          <div className="flex items-center gap-3">
-                            <span className="text-sm font-semibold text-emerald-900/80">{item.meaning}</span>
-                            <div className="text-emerald-800/40">
-                              <i data-lucide={isExpanded ? "chevron-up" : "chevron-down"} className="w-4 h-4"></i>
-                            </div>
-                          </div>
-                        </div>
-
-                        {isExpanded && (
-                          <div className="px-4 pb-4 pt-1 bg-[#fcfdfe] border-t border-emerald-900/5 animate-fade-in" onClick={(e) => e.stopPropagation()}>
-                            <textarea
-                              value={item.note}
-                              onChange={(e) => {
-                                const newNote = e.target.value;
-                                setWordList(wordList.map(w => w.id === item.id ? { ...w, note: newNote } : w));
-                              }}
-                              placeholder="输入笔记..."
-                              className="w-full p-3 rounded-xl text-xs bg-emerald-50/30 border border-emerald-900/10 focus:outline-none focus:ring-1 focus:ring-emerald-800/30 text-emerald-950 placeholder:text-emerald-900/30 resize-none leading-relaxed"
-                              rows="3"
-                            />
-                          </div>
                         )}
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
 
-            {/* TAB 3: FINANCE */}
-            {activeTab === 'finance' && (
-              <div className="flex-1 flex flex-col items-center justify-center text-center p-6 text-emerald-800/60 animate-fade-in">
-                <div className="w-16 h-16 bg-emerald-100/60 rounded-3xl flex items-center justify-center text-emerald-800 mb-3">
-                  <i data-lucide="wallet" className="w-8 h-8"></i>
-                </div>
-                <h2 className="text-lg font-bold text-emerald-950 mb-1">Finance 记账</h2>
-                <p className="text-xs text-emerald-800/50 max-w-[200px]">收支分类明细与极简图表视图</p>
-              </div>
-            )}
+                        {/* 内容滚动视口：确保每个 Tab 独立在内部滚动，绝对不会撑坏底部导航栏 */}
+                        <div className="flex-1 overflow-y-auto px-6 pt-2 pb-28 relative flex flex-col">
+                            
+                            {/* 1. HOME TAB */}
+                            {activeTab === 'home' && (
+                                <div className="flex-1 flex flex-col animate-fade-in">
+                                    <div className="mt-2 mb-6">
+                                        <h1 className="text-3xl font-extrabold text-emerald-950 tracking-tight font-serif mb-1">
+                                            JUNE'S JOURNAL
+                                        </h1>
+                                        <p className="text-sm font-semibold text-emerald-700/80 tracking-wide uppercase">
+                                            {formattedDate}
+                                        </p>
+                                    </div>
 
-            {/* TAB 4: HEALTH */}
-            {activeTab === 'health' && (
-              <div className="flex-1 flex flex-col animate-fade-in pt-1 space-y-6">
-                <div>
-                  <h1 className="text-2xl font-bold text-emerald-950 font-serif-title mb-1">Health</h1>
-                </div>
+                                    <div className="flex-1 bg-[#ffffff] rounded-3xl p-6 shadow-sm border border-emerald-900/5 relative overflow-hidden flex flex-col justify-between min-h-[380px]">
+                                        <div 
+                                            className="absolute inset-0 opacity-[0.03] pointer-events-none"
+                                            style={{
+                                                backgroundImage: `radial-gradient(#064e3b 1px, transparent 1px)`,
+                                                backgroundSize: '16px 16px'
+                                            }}
+                                        />
+                                        <div className="w-10 h-1 bg-emerald-800/20 rounded-full mb-4 mx-auto" />
+                                        <div className="flex-1 flex items-center justify-center text-center">
+                                            <p className="text-sm text-emerald-900/40 italic">记录今天发生的一切，AI 会自动帮你提炼体重与饮食哦...</p>
+                                        </div>
+                                        <div className="flex justify-end pt-4">
+                                            <button
+                                                onClick={() => setIsDialogOpen(true)}
+                                                className="w-14 h-14 rounded-full bg-emerald-800 text-emerald-50 flex items-center justify-center shadow-lg hover:bg-emerald-900 transition-all active:scale-95"
+                                            >
+                                                <Plus size={28} strokeWidth={2.5} />
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
 
-                {/* 1. Weight Section */}
-                <div className="bg-white rounded-3xl p-5 border border-emerald-900/5 shadow-sm flex flex-col gap-4">
-                  <div className="flex justify-between items-baseline">
-                    <span className="text-xs font-bold text-emerald-900/60 uppercase tracking-wider">Weight Trend (斤)</span>
-                    <span className="text-xl font-extrabold text-emerald-950">
-                      {weightLogs[weightLogs.length - 1]?.weight || '--'} <span className="text-xs font-medium text-emerald-800/60">斤</span>
-                    </span>
-                  </div>
+                            {/* 2. LEARNING TAB (Notebook) */}
+                            {activeTab === 'learning' && (
+                                <div className="flex-1 flex flex-col animate-fade-in pt-1">
+                                    <h2 className="text-2xl font-bold text-emerald-950 font-serif mb-4">Notebook</h2>
 
-                  {/* SVG Line Chart */}
-                  <div className="h-32 w-full relative pt-2">
-                    <svg className="w-full h-full overflow-visible" viewBox="0 0 300 100">
-                      {/* Gradient Fill */}
-                      <defs>
-                        <linearGradient id="weightGradient" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="0%" stopColor="#064e3b" stopOpacity="0.15" />
-                          <stop offset="100%" stopColor="#064e3b" stopOpacity="0.0" />
-                        </linearGradient>
-                      </defs>
+                                    <div className="relative mb-6">
+                                        <div className="flex gap-2">
+                                            <input
+                                                type="text"
+                                                value={inputWord}
+                                                onChange={(e) => setInputWord(e.target.value)}
+                                                placeholder="输入日语单词..."
+                                                className="flex-1 px-4 py-3 rounded-2xl bg-white border border-emerald-900/10 text-emerald-950 placeholder:text-emerald-900/30 text-sm focus:outline-none shadow-sm"
+                                            />
+                                            <button
+                                                onClick={handleParseWord}
+                                                disabled={isParsing || !inputWord.trim()}
+                                                className="w-12 h-12 rounded-2xl bg-emerald-800 text-emerald-50 flex items-center justify-center hover:bg-emerald-900 transition-all disabled:opacity-40 shrink-0 shadow"
+                                            >
+                                                <Plus size={20} strokeWidth={2.5} />
+                                            </button>
+                                        </div>
+                                    </div>
 
-                      {/* Line Points Calculation */}
-                      {(() => {
-                        const count = weightLogs.length;
-                        const points = weightLogs.map((item, idx) => {
-                          const x = (idx / (count - 1 || 1)) * 280 + 10;
-                          const norm = (item.weight - minW) / (maxW - minW || 1);
-                          const y = 85 - norm * 70;
-                          return { x, y, val: item.weight, date: item.date };
-                        });
+                                    {pendingWord && (
+                                        <div className="mb-6 p-5 rounded-2xl bg-emerald-900 text-emerald-50 shadow-xl animate-fade-in relative">
+                                            <div className="flex justify-between items-start mb-3">
+                                                <div>
+                                                    <span className="text-xs font-semibold uppercase tracking-wider text-emerald-300/80">解析确认</span>
+                                                    <div className="flex items-baseline gap-2 mt-1">
+                                                        <h3 className="text-2xl font-bold">{pendingWord.kanji}</h3>
+                                                        <span className="text-xs text-emerald-200/80">[{pendingWord.kana}]</span>
+                                                    </div>
+                                                </div>
+                                                <span className="px-2.5 py-1 rounded-full text-[11px] font-medium bg-emerald-800/80 text-emerald-200 border border-emerald-700/50">
+                                                    {pendingWord.pos}
+                                                </span>
+                                            </div>
+                                            <p className="text-sm text-emerald-100/90 mb-4 bg-emerald-950/40 p-3 rounded-xl">
+                                                <span className="text-xs text-emerald-300 block mb-0.5">中文释义:</span>
+                                                {pendingWord.meaning}
+                                            </p>
+                                            <div className="flex gap-2">
+                                                <button onClick={() => setPendingWord(null)} className="flex-1 py-2.5 rounded-xl bg-emerald-800/60 text-emerald-200 text-xs font-medium">取消</button>
+                                                <button onClick={handleConfirmWord} className="flex-1 py-2.5 rounded-xl bg-emerald-400 text-emerald-950 text-xs font-bold flex items-center justify-center gap-1">
+                                                    <Check size={14} /> 确认存入
+                                                </button>
+                                            </div>
+                                        </div>
+                                    )}
 
-                        const dPath = points.reduce((acc, p, i) => i === 0 ? `M ${p.x} ${p.y}` : `${acc} L ${p.x} ${p.y}`, '');
-                        const areaPath = `${dPath} L ${points[points.length - 1].x} 95 L ${points[0].x} 95 Z`;
+                                    <div className="flex-1 space-y-3">
+                                        <div className="flex justify-between items-center mb-1">
+                                            <span className="text-xs font-bold text-emerald-900/60 uppercase tracking-wider">Japanese</span>
+                                            <span className="text-xs text-emerald-800/40">{wordList.length} 词汇</span>
+                                        </div>
 
-                        return (
-                          <g>
-                            <path d={areaPath} fill="url(#weightGradient)" />
-                            <path d={dPath} fill="none" stroke="#064e3b" strokeWidth="2.5" strokeLinecap="round" />
-                            {points.map((p, i) => (
-                              <g key={i}>
-                                <circle cx={p.x} cy={p.y} r="4" fill="#ffffff" stroke="#064e3b" strokeWidth="2" />
-                                <text x={p.x} y={p.y - 8} textAnchor="middle" className="text-[9px] fill-emerald-900/60 font-semibold">{p.val}</text>
-                                <text x={p.x} y="98" textAnchor="middle" className="text-[8px] fill-emerald-900/40">{p.date}</text>
-                              </g>
-                            ))}
-                          </g>
-                        );
-                      })()}
-                    </svg>
-                  </div>
+                                        {wordList.map((item) => {
+                                            const isExpanded = expandedWordId === item.id;
+                                            const isEditingNote = noteEditingId === item.id;
 
-                  {/* Input bar to record/overwrite weight */}
-                  <div className="flex gap-2 pt-1 border-t border-emerald-900/5">
-                    <input
-                      type="number"
-                      step="0.1"
-                      value={weightInput}
-                      onChange={(e) => setWeightInput(e.target.value)}
-                      placeholder="录入今日体重 (斤)..."
-                      className="flex-1 px-4 py-2.5 rounded-2xl bg-emerald-50/40 border border-emerald-900/10 text-emerald-950 placeholder:text-emerald-900/30 text-xs focus:outline-none focus:ring-1 focus:ring-emerald-800/30"
-                    />
-                    <button
-                      onClick={() => {
-                        if (weightInput) {
-                          handleAddOrOverwriteWeight(weightInput);
-                          setWeightInput('');
-                          showToast('今日体重已覆盖更新');
-                        }
-                      }}
-                      className="w-10 h-10 rounded-2xl bg-emerald-800 text-emerald-50 flex items-center justify-center hover:bg-emerald-900 shrink-0 shadow-sm"
-                      aria-label="Save weight"
-                    >
-                      <i data-lucide="plus" className="w-5 h-5"></i>
-                    </button>
-                  </div>
-                </div>
+                                            return (
+                                                <div key={item.id} className="bg-white rounded-2xl border border-emerald-900/5 shadow-sm overflow-hidden">
+                                                    <div onClick={() => setExpandedWordId(isExpanded ? null : item.id)} className="p-4 flex items-center justify-between cursor-pointer hover:bg-emerald-50/30">
+                                                        <div className="flex flex-col">
+                                                            <div className="flex items-baseline gap-2">
+                                                                <span className="text-lg font-bold text-emerald-950">{item.kanji}</span>
+                                                                <span className="text-xs font-medium text-emerald-700/70">{item.kana}</span>
+                                                            </div>
+                                                            <span className="text-[10px] text-emerald-800/50 mt-0.5 font-medium">{item.pos}</span>
+                                                        </div>
+                                                        <div className="flex items-center gap-3">
+                                                            <span className="text-sm font-medium text-emerald-900/80">{item.meaning}</span>
+                                                            <div className="text-emerald-800/40">
+                                                                {isExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                                                            </div>
+                                                        </div>
+                                                    </div>
 
-                {/* 2. Diet Section */}
-                <div className="bg-white rounded-3xl p-5 border border-emerald-900/5 shadow-sm flex flex-col gap-4">
-                  <span className="text-xs font-bold text-emerald-900/60 uppercase tracking-wider">Diet Log</span>
+                                                    {isExpanded && (
+                                                        <div className="px-4 pb-4 pt-1 bg-[#fcfdfe] border-t border-emerald-900/5">
+                                                            <div className="flex justify-end mb-2">
+                                                                {!isEditingNote && (
+                                                                    <button onClick={(e) => { e.stopPropagation(); setNoteEditingId(item.id); setTempNoteText(item.note); }} className="text-emerald-700 text-xs flex items-center gap-1 font-medium">
+                                                                        <Edit3 size={12} /> {item.note ? '编辑' : '添加'}
+                                                                    </button>
+                                                                )}
+                                                            </div>
+                                                            {isEditingNote ? (
+                                                                <div className="flex flex-col gap-2">
+                                                                    <textarea
+                                                                        value={tempNoteText}
+                                                                        onChange={(e) => setTempNoteText(e.target.value)}
+                                                                        placeholder="输入记忆巧门或笔记..."
+                                                                        className="w-full p-2.5 rounded-xl text-xs bg-white border border-emerald-900/10 text-emerald-950 focus:outline-none"
+                                                                        rows={2}
+                                                                    />
+                                                                    <div className="flex justify-end gap-2">
+                                                                        <button onClick={() => setNoteEditingId(null)} className="px-3 py-1 rounded-lg text-xs text-emerald-800/60 bg-emerald-100/40">取消</button>
+                                                                        <button onClick={() => { setWordList(wordList.map(w => w.id === item.id ? { ...w, note: tempNoteText } : w)); setNoteEditingId(null); }} className="px-3 py-1 rounded-lg text-xs text-emerald-50 bg-emerald-800">保存</button>
+                                                                    </div>
+                                                                </div>
+                                                            ) : (
+                                                                <div className="p-3 rounded-xl bg-emerald-50/50 border border-emerald-900/5 text-xs text-emerald-900/80 min-h-[36px]">
+                                                                    {item.note ? <p className="whitespace-pre-wrap">{item.note}</p> : <span className="text-emerald-900/30 italic">点击右上角添加专属笔记...</span>}
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+                            )}
 
-                  {/* Food Input bar with Plus icon */}
-                  <div className="flex gap-2">
-                    <input
-                      type="text"
-                      value={foodInput}
-                      onChange={(e) => setFoodInput(e.target.value)}
-                      placeholder="记录饮食 (如: 冰美式, 鸡胸肉沙拉)..."
-                      className="flex-1 px-4 py-2.5 rounded-2xl bg-emerald-50/40 border border-emerald-900/10 text-emerald-950 placeholder:text-emerald-900/30 text-xs focus:outline-none focus:ring-1 focus:ring-emerald-800/30"
-                    />
-                    <button
-                      onClick={() => {
-                        if (foodInput.trim()) {
-                          const currentTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-                          setFoodLogs([{ id: Date.now(), time: currentTime, text: foodInput.trim() }, ...foodLogs]);
-                          setFoodInput('');
-                        }
-                      }}
-                      className="w-10 h-10 rounded-2xl bg-emerald-800 text-emerald-50 flex items-center justify-center hover:bg-emerald-900 shrink-0 shadow-sm"
-                      aria-label="Add food log"
-                    >
-                      <i data-lucide="plus" className="w-5 h-5"></i>
-                    </button>
-                  </div>
+                            {/* 3. HEALTH TAB */}
+                            {activeTab === 'health' && (
+                                <div className="flex-1 flex flex-col animate-fade-in pt-1 space-y-5">
+                                    <h2 className="text-2xl font-bold text-emerald-950 font-serif">Health</h2>
 
-                  {/* Food Log List with Delete Buttons */}
-                  <div className="space-y-2 pt-1">
-                    {foodLogs.length === 0 ? (
-                      <p className="text-xs text-emerald-900/30 italic text-center py-2">今日暂无饮食记录</p>
-                    ) : (
-                      foodLogs.map((item) => (
-                        <div key={item.id} className="flex items-center justify-between p-3 rounded-2xl bg-emerald-50/30 border border-emerald-900/5">
-                          <div className="flex items-center gap-3">
-                            <span className="text-[10px] font-semibold text-emerald-800/50 bg-emerald-100/60 px-2 py-0.5 rounded-md">{item.time}</span>
-                            <span className="text-xs font-medium text-emerald-950">{item.text}</span>
-                          </div>
-                          {/* Trash Delete Button */}
-                          <button
-                            onClick={() => handleDeleteFood(item.id)}
-                            className="text-emerald-900/30 hover:text-red-500 p-1 transition-colors"
-                            aria-label="Delete food item"
-                          >
-                            <i data-lucide="trash-2" className="w-3.5 h-3.5"></i>
-                          </button>
+                                    {/* 体重趋势卡片 */}
+                                    <div className="bg-white rounded-2xl p-4 border border-emerald-900/5 shadow-sm">
+                                        <div className="flex justify-between items-center mb-3">
+                                            <span className="text-xs font-bold text-emerald-900/60 uppercase tracking-wider">体重趋势 (斤)</span>
+                                            <span className="text-xs font-bold text-emerald-800">
+                                                当前: {weightList[weightList.length - 1]?.weight || '--'} 斤
+                                            </span>
+                                        </div>
+
+                                        {/* 简易可视化折线图 */}
+                                        <div className="h-28 w-full flex items-end gap-3 pt-4 pb-2 px-2 border-b border-emerald-900/5 bg-emerald-50/30 rounded-xl mb-3">
+                                            {weightList.map((item, idx) => {
+                                                const minW = 90;
+                                                const maxW = 140;
+                                                const heightPct = Math.max(15, Math.min(100, ((item.weight - minW) / (maxW - minW)) * 100));
+                                                return (
+                                                    <div key={idx} className="flex-1 flex flex-col items-center gap-1 h-full justify-end group">
+                                                        <span className="text-[10px] text-emerald-900/60 opacity-0 group-hover:opacity-100 transition-opacity font-mono">{item.weight}</span>
+                                                        <div 
+                                                            className="w-full bg-emerald-700/80 rounded-t-lg transition-all duration-300 hover:bg-emerald-800" 
+                                                            style={{ height: `${heightPct}%` }}
+                                                        />
+                                                        <span className="text-[9px] text-emerald-900/40 truncate w-full text-center">{item.date.slice(5)}</span>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+
+                                        {/* 体重加号输入栏 */}
+                                        <div className="flex gap-2">
+                                            <input
+                                                type="number"
+                                                step="0.1"
+                                                value={weightInput}
+                                                onChange={(e) => setWeightInput(e.target.value)}
+                                                placeholder="输入今日体重 (斤)..."
+                                                className="flex-1 px-3 py-2 rounded-xl bg-emerald-50/50 border border-emerald-900/10 text-emerald-950 text-xs focus:outline-none"
+                                            />
+                                            <button
+                                                onClick={handleAddWeight}
+                                                className="w-10 h-10 rounded-xl bg-emerald-800 text-emerald-50 flex items-center justify-center hover:bg-emerald-900 shrink-0 shadow"
+                                            >
+                                                <Plus size={18} strokeWidth={2.5} />
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    {/* 饮食记录列表卡片 */}
+                                    <div className="bg-white rounded-2xl p-4 border border-emerald-900/5 shadow-sm flex-1 flex flex-col">
+                                        <div className="flex justify-between items-center mb-3">
+                                            <span className="text-xs font-bold text-emerald-900/60 uppercase tracking-wider">饮食记录</span>
+                                            <span className="text-xs text-emerald-800/40">{dietList.length} 条记录</span>
+                                        </div>
+
+                                        <div className="flex gap-2 mb-3">
+                                            <input
+                                                type="text"
+                                                value={dietInput}
+                                                onChange={(e) => setDietInput(e.target.value)}
+                                                placeholder="记录饮食 (如: 午餐 蔬菜沙拉)..."
+                                                className="flex-1 px-3 py-2 rounded-xl bg-emerald-50/50 border border-emerald-900/10 text-emerald-950 text-xs focus:outline-none"
+                                            />
+                                            <button
+                                                onClick={handleAddDiet}
+                                                className="w-10 h-10 rounded-xl bg-emerald-800 text-emerald-50 flex items-center justify-center hover:bg-emerald-900 shrink-0 shadow"
+                                            >
+                                                <Plus size={18} strokeWidth={2.5} />
+                                            </button>
+                                        </div>
+
+                                        <div className="space-y-2 overflow-y-auto max-h-48 pr-1">
+                                            {dietList.map((diet) => (
+                                                <div key={diet.id} className="flex items-center justify-between p-3 rounded-xl bg-emerald-50/40 border border-emerald-950/5">
+                                                    <div>
+                                                        <p className="text-xs font-medium text-emerald-950">{diet.content}</p>
+                                                        <span className="text-[10px] text-emerald-800/50">{diet.time}</span>
+                                                    </div>
+                                                    <button
+                                                        onClick={() => setDietList(dietList.filter(d => d.id !== diet.id))}
+                                                        className="text-emerald-900/30 hover:text-red-500 p-1 transition-colors"
+                                                    >
+                                                        <Trash2 size={15} />
+                                                    </button>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* 4. FINANCE TAB */}
+                            {activeTab === 'finance' && (
+                                <div className="py-12 flex flex-col items-center justify-center flex-1 text-emerald-800/60">
+                                    <Wallet size={40} className="mb-2 opacity-40" />
+                                    <p className="text-sm font-medium">Finance</p>
+                                </div>
+                            )}
+
+                            {/* 5. CALENDAR TAB */}
+                            {activeTab === 'calendar' && (
+                                <div className="py-12 flex flex-col items-center justify-center flex-1 text-emerald-800/60">
+                                    <Calendar size={40} className="mb-2 opacity-40" />
+                                    <p className="text-sm font-medium">Calendar</p>
+                                </div>
+                            )}
+
                         </div>
-                      ))
-                    )}
-                  </div>
+
+                        {/* 绝对悬浮固定在底部的 5-Tab 导航栏 */}
+                        <div className="absolute bottom-0 left-0 right-0 h-20 bg-white/90 backdrop-blur-md border-t border-emerald-900/5 px-6 flex items-center justify-between z-30">
+                            <button onClick={() => setActiveTab('finance')} className={`p-3 rounded-2xl transition-all ${activeTab === 'finance' ? 'text-emerald-800 bg-emerald-100/60' : 'text-emerald-900/40'}`}>
+                                <Wallet size={24} strokeWidth={activeTab === 'finance' ? 2.5 : 2} />
+                            </button>
+                            <button onClick={() => setActiveTab('health')} className={`p-3 rounded-2xl transition-all ${activeTab === 'health' ? 'text-emerald-800 bg-emerald-100/60' : 'text-emerald-900/40'}`}>
+                                <Heart size={24} strokeWidth={activeTab === 'health' ? 2.5 : 2} />
+                            </button>
+                            <button onClick={() => setActiveTab('home')} className={`p-3.5 rounded-2xl transition-all ${activeTab === 'home' ? 'text-emerald-50 bg-emerald-800 shadow-md scale-105' : 'text-emerald-900/40'}`}>
+                                <BookOpen size={24} strokeWidth={activeTab === 'home' ? 2.5 : 2} />
+                            </button>
+                            <button onClick={() => setActiveTab('learning')} className={`p-3 rounded-2xl transition-all ${activeTab === 'learning' ? 'text-emerald-800 bg-emerald-100/60' : 'text-emerald-900/40'}`}>
+                                <BookMarked size={24} strokeWidth={activeTab === 'learning' ? 2.5 : 2} />
+                            </button>
+                            <button onClick={() => setActiveTab('calendar')} className={`p-3 rounded-2xl transition-all ${activeTab === 'calendar' ? 'text-emerald-800 bg-emerald-100/60' : 'text-emerald-900/40'}`}>
+                                <Calendar size={24} strokeWidth={activeTab === 'calendar' ? 2.5 : 2} />
+                            </button>
+                        </div>
+
+                        {/* 首页日记弹窗 */}
+                        {isDialogOpen && (
+                            <div className="absolute inset-0 z-50 bg-emerald-950/20 backdrop-blur-sm flex flex-col justify-end animate-fade-in">
+                                <div className="absolute inset-0" onClick={() => setIsDialogOpen(false)} />
+                                <div className="relative bg-[#ffffff] rounded-t-[32px] p-6 shadow-2xl border-t border-emerald-900/10 flex flex-col gap-4 max-h-[80%] z-10">
+                                    <div className="flex justify-between items-center pb-2">
+                                        <span className="text-sm font-semibold text-emerald-900/60">New Entry</span>
+                                        <button onClick={() => setIsDialogOpen(false)} className="w-8 h-8 rounded-full bg-emerald-100/50 flex items-center justify-center text-emerald-800">
+                                            <X size={18} />
+                                        </button>
+                                    </div>
+                                    <textarea
+                                        value={diaryText}
+                                        onChange={(e) => setDiaryText(e.target.value)}
+                                        placeholder="记录今天的心情、体重或饮食..."
+                                        className="w-full h-40 p-4 rounded-2xl bg-[#f8faf8] border border-emerald-900/10 text-emerald-950 placeholder:text-emerald-900/30 focus:outline-none resize-none text-base"
+                                        autoFocus
+                                    />
+                                    <button
+                                        onClick={handleSaveDiary}
+                                        className="w-full py-3.5 rounded-2xl bg-emerald-800 text-emerald-50 font-medium flex items-center justify-center gap-2 shadow-md"
+                                    >
+                                        <span>Save</span>
+                                        <Send size={18} />
+                                    </button>
+                                </div>
+                            </div>
+                        )}
+
+                    </div>
                 </div>
-              </div>
-            )}
+            );
+        }
 
-            {/* TAB 5: CALENDAR */}
-            {activeTab === 'calendar' && (
-              <div className="flex-1 flex flex-col items-center justify-center text-center p-6 text-emerald-800/60 animate-fade-in">
-                <div className="w-16 h-16 bg-emerald-100/60 rounded-3xl flex items-center justify-center text-emerald-800 mb-3">
-                  <i data-lucide="calendar" className="w-8 h-8"></i>
-                </div>
-                <h2 className="text-lg font-bold text-emerald-950 mb-1">Calendar 足迹</h2>
-                <p className="text-xs text-emerald-800/50 max-w-[200px]">月历回顾与当日综合日记复盘</p>
-              </div>
-            )}
-
-          </div>
-
-          {/* Bottom 5 Icon Navigation Bar */}
-          <div className="absolute bottom-0 left-0 right-0 h-20 bg-white/90 backdrop-blur-md border-t border-emerald-900/5 px-6 flex items-center justify-between z-20">
-            <button
-              onClick={() => setActiveTab('finance')}
-              className={`p-3 rounded-2xl transition-all ${
-                activeTab === 'finance' ? 'text-emerald-800 bg-emerald-100/60' : 'text-emerald-900/40 hover:text-emerald-800'
-              }`}
-            >
-              <i data-lucide="wallet" className="w-6 h-6"></i>
-            </button>
-
-            <button
-              onClick={() => setActiveTab('health')}
-              className={`p-3 rounded-2xl transition-all ${
-                activeTab === 'health' ? 'text-emerald-800 bg-emerald-100/60' : 'text-emerald-900/40 hover:text-emerald-800'
-              }`}
-            >
-              <i data-lucide="heart" className="w-6 h-6"></i>
-            </button>
-
-            <button
-              onClick={() => setActiveTab('home')}
-              className={`p-3.5 rounded-2xl transition-all ${
-                activeTab === 'home' ? 'text-emerald-50 bg-emerald-800 shadow-md scale-105' : 'text-emerald-900/40 hover:text-emerald-800'
-              }`}
-            >
-              <i data-lucide="book-open" className="w-6 h-6"></i>
-            </button>
-
-            <button
-              onClick={() => setActiveTab('learning')}
-              className={`p-3 rounded-2xl transition-all ${
-                activeTab === 'learning' ? 'text-emerald-800 bg-emerald-100/60' : 'text-emerald-900/40 hover:text-emerald-800'
-              }`}
-            >
-              <i data-lucide="book-marked" className="w-6 h-6"></i>
-            </button>
-
-            <button
-              onClick={() => setActiveTab('calendar')}
-              className={`p-3 rounded-2xl transition-all ${
-                activeTab === 'calendar' ? 'text-emerald-800 bg-emerald-100/60' : 'text-emerald-900/40 hover:text-emerald-800'
-              }`}
-            >
-              <i data-lucide="calendar" className="w-6 h-6"></i>
-            </button>
-          </div>
-
-          {/* Bottom Sheet Diary Modal */}
-          {isDiaryOpen && (
-            <div className="absolute inset-0 z-50 bg-emerald-950/20 backdrop-blur-sm flex flex-col justify-end animate-fade-in">
-              <div className="absolute inset-0" onClick={() => setIsDiaryOpen(false)} />
-              <div className="relative bg-white rounded-t-[32px] p-6 shadow-2xl border-t border-emerald-900/10 flex flex-col gap-4 max-h-[80%] animate-slide-up">
-                <div className="flex justify-between items-center pb-1">
-                  <span className="text-xs font-semibold text-emerald-900/60 tracking-wider uppercase">New Journal Entry</span>
-                  <button
-                    onClick={() => setIsDiaryOpen(false)}
-                    className="w-8 h-8 rounded-full bg-emerald-100/50 flex items-center justify-center text-emerald-800"
-                  >
-                    <i data-lucide="x" className="w-4 h-4"></i>
-                  </button>
-                </div>
-
-                <textarea
-                  value={diaryText}
-                  onChange={(e) => setDiaryText(e.target.value)}
-                  placeholder="记录今天发生的点滴、吃了什么、体重 (如: 体重115斤 早餐吃了水煮蛋)..."
-                  className="w-full h-40 p-4 rounded-2xl bg-[#f8faf8] border border-emerald-900/10 text-emerald-950 placeholder:text-emerald-900/30 focus:outline-none focus:ring-2 focus:ring-emerald-800/20 resize-none text-sm leading-relaxed"
-                  autoFocus
-                />
-
-                <button
-                  onClick={handleSaveDiary}
-                  className="w-full py-3.5 rounded-2xl bg-emerald-800 text-emerald-50 font-medium flex items-center justify-center gap-2 shadow-md hover:bg-emerald-900 active:scale-[0.99] transition-all"
-                >
-                  <span>保存日记</span>
-                  <i data-lucide="send" className="w-4 h-4"></i>
-                </button>
-              </div>
-            </div>
-          )}
-
-        </div>
-      );
-    }
-
-    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
-  </script>
+        ReactDOM.render(<App />, document.getElementById('root'));
+    </script>
 </body>
 </html>
