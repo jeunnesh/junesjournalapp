@@ -48,3 +48,309 @@
                     <button onclick="saveDiary()" class="w-full py-3.5 rounded-2xl bg-emerald-800 text-emerald-50 font-medium flex items-center justify-center gap-2 shadow-md">
                         <span>Save</span> <i data-lucide="send" class="w-4 h-4"></i>
                     </button>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <script>
+        // 全局状态
+        let currentTab = 'home';
+        let wordList = [
+            { id: 1, kanji: '勉強', kana: 'べんきょう', pos: '名 · 名词', meaning: '学习、勤奋', note: '常用于 勉強する (学习)' },
+            { id: 2, kanji: '食べる', kana: 'たべる', pos: '他五 · 一段动词', meaning: '吃、生存', note: '' }
+        ];
+        let weightList = [
+            { date: '2026-06-01', weight: 114.0 },
+            { date: '2026-06-02', weight: 113.8 },
+            { date: '2026-06-03', weight: 114.2 }
+        ];
+        let dietList = [
+            { id: 1, time: '今天 08:30', content: '全麦面包 + 美式咖啡' },
+            { id: 2, time: '今天 12:40', content: '鸡胸肉沙拉' }
+        ];
+        let pendingWord = null;
+        let expandedWordId = null;
+
+        // 显示 Toast
+        function showToast(msg) {
+            const toast = document.getElementById('toast');
+            document.getElementById('toast-text').innerText = msg;
+            toast.classList.remove('hidden');
+            setTimeout(() => toast.classList.add('hidden'), 3000);
+        }
+
+        // 切换 Tab
+        function switchTab(tab) {
+            currentTab = tab;
+            // 更新底部按钮高亮
+            ['finance', 'health', 'home', 'learning', 'calendar'].forEach(t => {
+                const btn = document.getElementById(`tab-btn-${t}`);
+                if (t === tab) {
+                    if (t === 'home') {
+                        btn.className = "p-3.5 rounded-2xl text-emerald-50 bg-emerald-800 shadow-md scale-105 transition-all";
+                    } else {
+                        btn.className = "p-3 rounded-2xl text-emerald-800 bg-emerald-100/60 transition-all";
+                    }
+                } else {
+                    btn.className = "p-3 rounded-2xl text-emerald-900/40 transition-all";
+                }
+            });
+            renderContent();
+        }
+
+        // 渲染页面内容
+        function renderContent() {
+            const area = document.getElementById('content-area');
+            const todayStr = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric', year: 'numeric' });
+
+            if (currentTab === 'home') {
+                area.innerHTML = `
+                    <div class="flex-1 flex flex-col animate-fade-in">
+                        <div class="mt-2 mb-6">
+                            <h1 class="text-3xl font-extrabold text-emerald-950 tracking-tight font-serif mb-1">JUNE'S JOURNAL</h1>
+                            <p class="text-sm font-semibold text-emerald-700/80 tracking-wide uppercase">${todayStr}</p>
+                        </div>
+                        <div class="flex-1 bg-[#ffffff] rounded-3xl p-6 shadow-sm border border-emerald-900/5 relative overflow-hidden flex flex-col justify-between min-h-[380px]">
+                            <div class="absolute inset-0 opacity-[0.03] pointer-events-none" style="background-image: radial-gradient(#064e3b 1px, transparent 1px); background-size: 16px 16px;"></div>
+                            <div class="w-10 h-1 bg-emerald-800/20 rounded-full mb-4 mx-auto"></div>
+                            <div class="flex-1 flex items-center justify-center text-center">
+                                <p class="text-sm text-emerald-900/40 italic">记录今天发生的一切，AI 会自动帮你提炼体重与饮食哦...</p>
+                            </div>
+                            <div class="flex justify-end pt-4">
+                                <button onclick="openDiaryDialog()" class="w-14 h-14 rounded-full bg-emerald-800 text-emerald-50 flex items-center justify-center shadow-lg active:scale-95">
+                                    <i data-lucide="plus" class="w-7 h-7"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            } else if (currentTab === 'learning') {
+                let html = `
+                    <div class="flex-1 flex flex-col pt-1">
+                        <h2 class="text-2xl font-bold text-emerald-950 font-serif mb-4">Notebook</h2>
+                        <div class="relative mb-6">
+                            <div class="flex gap-2">
+                                <input type="text" id="word-input" placeholder="输入日语单词..." class="flex-1 px-4 py-3 rounded-2xl bg-white border border-emerald-900/10 text-emerald-950 placeholder:text-emerald-900/30 text-sm focus:outline-none shadow-sm" />
+                                <button onclick="parseWord()" class="w-12 h-12 rounded-2xl bg-emerald-800 text-emerald-50 flex items-center justify-center shrink-0 shadow">
+                                    <i data-lucide="plus" class="w-5 h-5"></i>
+                                </button>
+                            </div>
+                        </div>
+                `;
+
+                if (pendingWord) {
+                    html += `
+                        <div class="mb-6 p-5 rounded-2xl bg-emerald-900 text-emerald-50 shadow-xl">
+                            <div class="flex justify-between items-start mb-3">
+                                <div>
+                                    <span class="text-xs font-semibold uppercase tracking-wider text-emerald-300/80">解析确认</span>
+                                    <div class="flex items-baseline gap-2 mt-1">
+                                        <h3 class="text-2xl font-bold">${pendingWord.kanji}</h3>
+                                        <span class="text-xs text-emerald-200/80">[${pendingWord.kana}]</span>
+                                    </div>
+                                </div>
+                                <span class="px-2.5 py-1 rounded-full text-[11px] font-medium bg-emerald-800/80 text-emerald-200">${pendingWord.pos}</span>
+                            </div>
+                            <p class="text-sm text-emerald-100/90 mb-4 bg-emerald-950/40 p-3 rounded-xl">
+                                <span class="text-xs text-emerald-300 block mb-0.5">中文释义:</span>${pendingWord.meaning}
+                            </p>
+                            <div class="flex gap-2">
+                                <button onclick="cancelPendingWord()" class="flex-1 py-2.5 rounded-xl bg-emerald-800/60 text-emerald-200 text-xs font-medium">取消</button>
+                                <button onclick="confirmWord()" class="flex-1 py-2.5 rounded-xl bg-emerald-400 text-emerald-950 text-xs font-bold flex items-center justify-center gap-1">确认存入</button>
+                            </div>
+                        </div>
+                    `;
+                }
+
+                html += `<div class="flex-1 space-y-3"><div class="flex justify-between items-center mb-1"><span class="text-xs font-bold text-emerald-900/60 uppercase tracking-wider">Japanese</span><span class="text-xs text-emerald-800/40">${wordList.length} 词汇</span></div>`;
+
+                wordList.forEach(item => {
+                    const isExpanded = expandedWordId === item.id;
+                    html += `
+                        <div class="bg-white rounded-2xl border border-emerald-900/5 shadow-sm overflow-hidden">
+                            <div onclick="toggleWord(${item.id})" class="p-4 flex items-center justify-between cursor-pointer">
+                                <div class="flex flex-col">
+                                    <div class="flex items-baseline gap-2">
+                                        <span class="text-lg font-bold text-emerald-950">${item.kanji}</span>
+                                        <span class="text-xs font-medium text-emerald-700/70">${item.kana}</span>
+                                    </div>
+                                    <span class="text-[10px] text-emerald-800/50 mt-0.5 font-medium">${item.pos}</span>
+                                </div>
+                                <div class="flex items-center gap-3">
+                                    <span class="text-sm font-medium text-emerald-900/80">${item.meaning}</span>
+                                    <i data-lucide="${isExpanded ? 'chevron-up' : 'chevron-down'}" class="w-4 h-4 text-emerald-800/40"></i>
+                                </div>
+                            </div>
+                    `;
+                    if (isExpanded) {
+                        html += `
+                            <div class="px-4 pb-4 pt-1 bg-[#fcfdfe] border-t border-emerald-900/5">
+                                <textarea oninput="updateNote(${item.id}, this.value)" placeholder="输入笔记、例句..." class="w-full p-2.5 rounded-xl text-xs bg-white border border-emerald-900/10 text-emerald-950 focus:outline-none" rows="2">${item.note || ''}</textarea>
+                            </div>
+                        `;
+                    }
+                    html += `</div>`;
+                });
+
+                html += `</div></div>`;
+                area.innerHTML = html;
+            } else if (currentTab === 'health') {
+                const latestWeight = weightList.length > 0 ? weightList[weightList.length - 1].weight : '--';
+                let weightBars = '';
+                weightList.forEach(item => {
+                    const h = Math.max(15, Math.min(100, ((item.weight - 90) / 50) * 100));
+                    weightBars += `
+                        <div class="flex-1 flex flex-col items-center gap-1 h-full justify-end group">
+                            <span class="text-[10px] text-emerald-900/60 font-mono">${item.weight}</span>
+                            <div class="w-full bg-emerald-700/80 rounded-t-lg" style="height: ${h}%"></div>
+                            <span class="text-[9px] text-emerald-900/40 truncate w-full text-center">${item.date.slice(5)}</span>
+                        </div>
+                    `;
+                });
+
+                let dietItems = '';
+                dietList.forEach(d => {
+                    dietItems += `
+                        <div class="flex items-center justify-between p-3 rounded-xl bg-emerald-50/40 border border-emerald-950/5">
+                            <div>
+                                <p class="text-xs font-medium text-emerald-950">${d.content}</p>
+                                <span class="text-[10px] text-emerald-800/50">${d.time}</span>
+                            </div>
+                            <button onclick="deleteDiet(${d.id})" class="text-emerald-900/30 hover:text-red-500 p-1"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+                        </div>
+                    `;
+                });
+
+                area.innerHTML = `
+                    <div class="flex-1 flex flex-col pt-1 space-y-5">
+                        <h2 class="text-2xl font-bold text-emerald-950 font-serif">Health</h2>
+                        <div class="bg-white rounded-2xl p-4 border border-emerald-900/5 shadow-sm">
+                            <div class="flex justify-between items-center mb-3">
+                                <span class="text-xs font-bold text-emerald-900/60 uppercase tracking-wider">体重趋势 (斤)</span>
+                                <span class="text-xs font-bold text-emerald-800">当前: ${latestWeight} 斤</span>
+                            </div>
+                            <div class="h-28 w-full flex items-end gap-3 pt-4 pb-2 px-2 border-b border-emerald-900/5 bg-emerald-50/30 rounded-xl mb-3">
+                                ${weightBars}
+                            </div>
+                            <div class="flex gap-2">
+                                <input type="number" step="0.1" id="weight-input" placeholder="输入今日体重 (斤)..." class="flex-1 px-3 py-2 rounded-xl bg-emerald-50/50 border border-emerald-900/10 text-emerald-950 text-xs focus:outline-none" />
+                                <button onclick="addWeight()" class="w-10 h-10 rounded-xl bg-emerald-800 text-emerald-50 flex items-center justify-center shrink-0 shadow"><i data-lucide="plus" class="w-5 h-5"></i></button>
+                            </div>
+                        </div>
+                        <div class="bg-white rounded-2xl p-4 border border-emerald-900/5 shadow-sm flex-1 flex flex-col">
+                            <div class="flex justify-between items-center mb-3">
+                                <span class="text-xs font-bold text-emerald-900/60 uppercase tracking-wider">饮食记录</span>
+                                <span class="text-xs text-emerald-800/40">${dietList.length} 条记录</span>
+                            </div>
+                            <div class="flex gap-2 mb-3">
+                                <input type="text" id="diet-input" placeholder="记录饮食..." class="flex-1 px-3 py-2 rounded-xl bg-emerald-50/50 border border-emerald-900/10 text-emerald-950 text-xs focus:outline-none" />
+                                <button onclick="addDiet()" class="w-10 h-10 rounded-xl bg-emerald-800 text-emerald-50 flex items-center justify-center shrink-0 shadow"><i data-lucide="plus" class="w-5 h-5"></i></button>
+                            </div>
+                            <div class="space-y-2 overflow-y-auto max-h-48 pr-1">${dietItems}</div>
+                        </div>
+                    </div>
+                `;
+            } else {
+                area.innerHTML = `
+                    <div class="py-12 flex flex-col items-center justify-center flex-1 text-emerald-800/60">
+                        <i data-lucide="${currentTab === 'finance' ? 'wallet' : 'calendar'}" class="w-10 h-10 mb-2 opacity-40"></i>
+                        <p class="text-sm font-medium capitalize">${currentTab}</p>
+                    </div>
+                `;
+            }
+
+            // 重新初始化图标
+            lucide.createIcons();
+        }
+
+        // 交互逻辑函数
+        function openDiaryDialog() { document.getElementById('diary-dialog').classList.remove('hidden'); }
+        function closeDiaryDialog() { document.getElementById('diary-dialog').classList.add('hidden'); }
+
+        function saveDiary() {
+            const text = document.getElementById('diary-input').value.trim();
+            if (!text) { closeDiaryDialog(); return; }
+
+            // 抓取体重
+            const weightMatch = text.match(/(?:体重)?\s*(\d{2,3}(?:\.\d)?)\s*斤/);
+            if (weightMatch) {
+                const val = parseFloat(weightMatch[1]);
+                const todayStr = new Date().toISOString().split('T')[0];
+                const existing = weightList.find(w => w.date === todayStr);
+                if (existing) existing.weight = val;
+                else weightList.push({ date: todayStr, weight: val });
+            }
+
+            // 抓取饮食
+            if (text.includes('吃') || text.includes('早餐') || text.includes('午餐') || text.includes('晚餐')) {
+                const nowStr = '今天 ' + new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                dietList.unshift({ id: Date.now(), time: nowStr, content: text });
+            }
+
+            closeDiaryDialog();
+            document.getElementById('diary-input').value = '';
+            showToast('✨ 日记已保存，健康数据已自动同步');
+            renderContent();
+        }
+
+        function parseWord() {
+            const val = document.getElementById('word-input').value.trim();
+            if (!val) return;
+            pendingWord = {
+                kanji: val,
+                kana: val === '猫' ? 'ねこ' : '假名解析中...',
+                pos: val === '猫' ? '名 · 名词' : '自动识别词性',
+                meaning: val === '猫' ? '猫、猫咪' : '自动识别中文含义'
+            };
+            renderContent();
+        }
+        function cancelPendingWord() { pendingWord = null; renderContent(); }
+        function confirmWord() {
+            if (!pendingWord) return;
+            wordList.unshift({ id: Date.now(), ...pendingWord, note: '' });
+            pendingWord = null;
+            renderContent();
+        }
+        function toggleWord(id) {
+            expandedWordId = expandedWordId === id ? null : id;
+            renderContent();
+        }
+        function updateNote(id, val) {
+            const item = wordList.find(w => w.id === id);
+            if (item) item.note = val;
+        }
+
+        function addWeight() {
+            const val = parseFloat(document.getElementById('weight-input').value);
+            if (isNaN(val)) return;
+            const todayStr = new Date().toISOString().split('T')[0];
+            const existing = weightList.find(w => w.date === todayStr);
+            if (existing) existing.weight = val;
+            else weightList.push({ date: todayStr, weight: val });
+            showToast('✨ 体重已更新');
+            renderContent();
+        }
+
+        function addDiet() {
+            const val = document.getElementById('diet-input').value.trim();
+            if (!val) return;
+            const nowStr = '今天 ' + new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            dietList.unshift({ id: Date.now(), time: nowStr, content: val });
+            showToast('✨ 饮食已记录');
+            renderContent();
+        }
+
+        function deleteDiet(id) {
+            dietList = dietList.filter(d => d.id !== id);
+            renderContent();
+        }
+
+        // 初始化渲染
+        window.onload = function() {
+            renderContent();
+        };
+    </script>
+</body>
+</html>
